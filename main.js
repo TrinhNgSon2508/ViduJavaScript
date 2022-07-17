@@ -24,7 +24,16 @@ function Validator(options){
         //lăp qua từng rule và kiểm tra
         //Nếu có lỗi thì dừng kiểm tra 
         for (var i = 0; i < rules.length; ++i) {
-            errorMessage = rules[i](inputElement.value);
+            switch(inputElement.type){
+                case 'radio':
+                case 'checkbox':
+                    errorMessage = rules[i](
+                        formElement.querySelector(rule.selector + ":checked")
+                    );
+                    break;
+                default:
+                    errorMessage = rules[i](inputElement.value);
+            }            
             if (errorMessage) break;
         }
 
@@ -64,7 +73,27 @@ function Validator(options){
                 if(typeof options.onSubmit === "function"){
                     var enableInputs = formElement.querySelectorAll("[name]");
                     var formValues = Array.from(enableInputs).reduce(function (value,input){
-                        value[input.name] = input.value;
+                        switch(input.type){
+                            case "radio":
+                                value[input.name] = formElement.querySelector('input[name="' + input.name+ '"]:checked').value;
+                                break;
+                            case "checkbox":
+                                if(!input.matches(":checked")) {
+                                    value[input.name] = '';
+                                    return value;
+                                };
+                                
+                                if(!Array.isArray(value[input.name])){
+                                    value[input.name] = [];
+                                }
+                                value[input.name].push(input.value);
+                                break;
+                            case "file":
+                                value[input.name] = input.files;
+                                break;
+                            default:
+                                value[input.name] = input.value;
+                        }
                         return value;
                     },{});
                     options.onSubmit(formValues);
@@ -91,11 +120,11 @@ function Validator(options){
             
             
 
-            var inputElement = formElement.querySelector(rule.selector); 
+            var inputElements = formElement.querySelectorAll(rule.selector); 
 
-            if(inputElement){
-                //xử lí trường hợp blur ra input
-                inputElement.onblur = function (){
+            Array.from(inputElements).forEach(function(inputElement){
+                 //xử lí trường hợp blur ra input
+                 inputElement.onblur = function (){
                     validate(inputElement,rule);
                 }
                 // xủ lý trường hợp người dùng nhập vào input
@@ -104,7 +133,8 @@ function Validator(options){
                     errorElement.innerText = "";
                     getParent(inputElement, options.formGroupSelector).classList.remove("invalid");
                 }
-            }
+            })
+
         });
 
     }
@@ -115,7 +145,7 @@ Validator.isRequired = function (selector, message){
     return {
         selector: selector,
         test: function (value){
-            return value.trim() ? undefined : message || "Vui lòng nhập trường này!"
+            return value ? undefined : message || "Vui lòng nhập trường này!"
         }
     }
     
